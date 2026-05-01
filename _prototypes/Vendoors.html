@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vendoors — The archive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="placeholder.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="home.jsx"></script>
+<script type="text/babel" src="album.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "#30c54e",
+  "accentSoft": "#67ec55",
+  "density": "dense",
+  "serifHeadlines": true,
+  "showVendorLogo": true,
+  "stickyContactBar": true
+}/*EDITMODE-END*/;
+
+function parseHash() {
+  const h = window.location.hash || '#/';
+  const m = h.match(/^#\/album\/([^/]+)/);
+  if (m) return { route: 'album', id: m[1] };
+  return { route: 'home' };
+}
+
+function App() {
+  const [route, setRoute] = useState(parseHash());
+  const [activeCat, setActiveCat] = useState('all');
+  const [query, setQuery] = useState('');
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  useEffect(() => {
+    function onHash() { setRoute(parseHash()); window.scrollTo(0, 0); }
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // Apply tweaks as CSS custom properties / data attrs
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--accent', tweaks.accent);
+    root.style.setProperty('--accent-soft', tweaks.accentSoft);
+    document.body.dataset.density = tweaks.density;
+  }, [tweaks]);
+
+  function openAlbum(id) { window.location.hash = `#/album/${id}`; }
+  function back() { window.location.hash = '#/'; }
+
+  return (
+    <>
+      {route.route === 'home'
+        ? <Home
+            tweaks={tweaks}
+            setTweak={setTweak}
+            onOpenAlbum={openAlbum}
+            activeCat={activeCat}
+            setActiveCat={setActiveCat}
+            query={query}
+            setQuery={setQuery}
+          />
+        : <Album albumId={route.id} onBack={back} />
+      }
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="Accent">
+          <TweakColor label="Active state" value={tweaks.accent} onChange={(v) => setTweak('accent', v)} />
+          <TweakColor label="Soft pill bg" value={tweaks.accentSoft} onChange={(v) => setTweak('accentSoft', v)} />
+        </TweakSection>
+
+        <TweakSection label="Density">
+          <TweakRadio
+            value={tweaks.density}
+            onChange={(v) => setTweak('density', v)}
+            options={[
+              { value: 'dense', label: 'Dense' },
+              { value: 'default', label: 'Default' },
+              { value: 'airy', label: 'Airy' },
+            ]}
+          />
+        </TweakSection>
+
+        <TweakSection label="Demo">
+          <TweakButton onClick={() => openAlbum(ALBUMS[0].id)}>Open sample album →</TweakButton>
+          <TweakButton onClick={() => { setActiveCat('outerwear'); back(); }}>Filter: Outerwear</TweakButton>
+          <TweakButton onClick={() => { setActiveCat('all'); setQuery(''); back(); }}>Reset</TweakButton>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
