@@ -40,7 +40,13 @@
       "Bash(python -c \"import json,sys; print\\(f'  Total media in library: {len\\(json.load\\(sys.stdin\\)\\)}'\\)\")",
       "Bash(python -c ' *)",
       "Bash(python -c \"import json,sys; print\\(f'  Media in library: {len\\(json.load\\(sys.stdin\\)\\)}'\\)\")",
-      "Bash(echo \"eslint=$?\")"
+      "Bash(echo \"eslint=$?\")",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(curl -s -o /dev/null -w \"/esntlsclub → %{http_code}\\\\n\" https://vendoors.vercel.app/esntlsclub)",
+      "Bash(curl -s -o /dev/null -w \"/makoarchive → %{http_code}\\\\n\" https://vendoors.vercel.app/makoarchive)"
     ]
   }
 }

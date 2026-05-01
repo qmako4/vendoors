@@ -15,6 +15,8 @@ type Initial = {
   contact_telegram: string | null;
   contact_instagram: string | null;
   contact_email: string | null;
+  watermark_enabled: boolean;
+  watermark_text: string | null;
 };
 
 export function ProfileForm({ initial }: { initial: Initial }) {
@@ -31,6 +33,12 @@ export function ProfileForm({ initial }: { initial: Initial }) {
   const [telegram, setTelegram] = useState(initial.contact_telegram ?? '');
   const [instagram, setInstagram] = useState(initial.contact_instagram ?? '');
   const [email, setEmail] = useState(initial.contact_email ?? '');
+  const [watermarkEnabled, setWatermarkEnabled] = useState(
+    initial.watermark_enabled,
+  );
+  const [watermarkText, setWatermarkText] = useState(
+    initial.watermark_text ?? '',
+  );
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -50,6 +58,8 @@ export function ProfileForm({ initial }: { initial: Initial }) {
         contact_telegram: telegram.trim() || null,
         contact_instagram: instagram.trim() || null,
         contact_email: email.trim() || null,
+        watermark_enabled: watermarkEnabled,
+        watermark_text: watermarkText.trim() || null,
       })
       .eq('id', initial.id);
 
@@ -172,6 +182,43 @@ export function ProfileForm({ initial }: { initial: Initial }) {
           placeholder="you@studio.com"
         />
       </label>
+
+      <h2 className="dash-h2 dash-form-section">Watermark</h2>
+      <p className="dash-section-hint mono">
+        Burn a faded text watermark onto every photo you upload. Helps deter
+        scrapers from reposting your shots.
+      </p>
+
+      <label className="dash-checkbox">
+        <input
+          type="checkbox"
+          checked={watermarkEnabled}
+          onChange={(e) => setWatermarkEnabled(e.target.checked)}
+        />
+        <span>
+          <span className="dash-check-h">Watermark new uploads</span>
+          <span className="dash-check-sub mono">
+            Applies to new photos only — existing ones aren&apos;t re-processed
+          </span>
+        </span>
+      </label>
+
+      {watermarkEnabled && (
+        <label className="dash-field">
+          <span className="mono">WATERMARK TEXT (OPTIONAL)</span>
+          <input
+            type="text"
+            value={watermarkText}
+            onChange={(e) => setWatermarkText(e.target.value)}
+            placeholder={initial.display_name || initial.handle}
+            maxLength={40}
+          />
+          <span className="dash-field-hint mono">
+            Leave blank to use your display name. Goes in the bottom-right
+            corner of every photo.
+          </span>
+        </label>
+      )}
 
       {err && <div className="auth-err mono">{err}</div>}
 

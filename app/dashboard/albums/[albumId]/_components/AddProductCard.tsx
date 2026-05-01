@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { uploadToLibrary } from '@/lib/upload';
 import { LibraryPicker, type LibraryItem } from '@/components/LibraryPicker';
+import { useWatermarkText } from '@/components/useWatermarkText';
 
 export type AddKind = 'category' | 'product' | 'variant';
 
@@ -56,6 +57,7 @@ export function AddProductCard({
   const cfg = KIND_CONFIG[kind];
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const watermark = useWatermarkText(vendorId);
   const [open, setOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [title, setTitle] = useState('');

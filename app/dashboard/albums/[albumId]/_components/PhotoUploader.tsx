@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { photoUrl } from '@/lib/storage';
 import { uploadToLibrary } from '@/lib/upload';
 import { LibraryPicker, type LibraryItem } from '@/components/LibraryPicker';
+import { useWatermarkText } from '@/components/useWatermarkText';
 
 type ExistingPhoto = {
   id: string;
@@ -31,6 +32,7 @@ type UploadStatus = {
 export function PhotoUploader({ albumId, vendorId, photos: initialPhotos }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const watermark = useWatermarkText(vendorId);
 
   const [items, setItems] = useState<ExistingPhoto[]>(initialPhotos);
   const [uploads, setUploads] = useState<UploadStatus[]>([]);
@@ -67,6 +69,7 @@ export function PhotoUploader({ albumId, vendorId, photos: initialPhotos }: Prop
           supabase,
           file,
           vendorId,
+          watermark,
         );
 
         // Link the media into this product as a photo.

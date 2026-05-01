@@ -8,7 +8,10 @@ import { VendorGallery, type Category, type Section } from './_components/Vendor
 type Params = Promise<{ handle: string }>;
 type SearchParams = Promise<{ cat?: string }>;
 
-type ProductWithCategories = GalleryAlbum & { categoryIds: string[] };
+type ProductWithCategories = GalleryAlbum & {
+  categoryIds: string[];
+  isFeatured: boolean;
+};
 
 async function fetchVendor(handle: string) {
   const supabase = await createClient();
@@ -25,14 +28,14 @@ async function fetchVendor(handle: string) {
   const { data: rows } = await supabase
     .from('albums')
     .select(
-      'id, slug, title, description, links, photo_count, updated_at',
+      'id, slug, title, description, links, photo_count, updated_at, is_featured',
     )
     .eq('vendor_id', profile.id)
     .eq('is_public', true)
     .gt('photo_count', 0)
     .order('updated_at', { ascending: false });
 
-  const productRows = (rows ?? []) as AlbumRow[];
+  const productRows = (rows ?? []) as Array<AlbumRow & { is_featured: boolean }>;
 
   // Pull first 5 photos for each product (cover + 4 thumb strip).
   const ids = productRows.map((r) => r.id);
@@ -81,6 +84,7 @@ async function fetchVendor(handle: string) {
       coverStorageKey: keys[0] ?? null,
       thumbStorageKeys: keys.slice(1, 5),
       categoryIds: categoryIdsByProduct.get(row.id) ?? [],
+      isFeatured: row.is_featured,
     };
   });
 
@@ -149,13 +153,32 @@ export default async function Page({
     }
   }
 
-  const sections: Section[] = result.categories
-    .map((c) => ({
+  const sections: Section[] = [];
+
+  // Featured section first if any products are pinned.
+  const featured = result.products.filter((p) => p.isFeatured);
+  if (featured.length > 0 && !cat) {
+    sections.push({
+      category: {
+        id: '__featured',
+        slug: '__featured',
+        title: 'Featured',
+        parent_id: null,
+      },
+      products: featured,
+      totalCount: featured.length,
+    });
+  }
+
+  for (const c of result.categories) {
+    const products = productsByCategory.get(c.id) ?? [];
+    if (products.length === 0) continue;
+    sections.push({
       category: c,
-      products: productsByCategory.get(c.id) ?? [],
-      totalCount: (productsByCategory.get(c.id) ?? []).length,
-    }))
-    .filter((s) => s.products.length > 0);
+      products,
+      totalCount: products.length,
+    });
+  }
 
   if (uncategorized.length > 0) {
     sections.push({

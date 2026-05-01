@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { photoUrl } from '@/lib/storage';
 import { uploadToLibrary } from '@/lib/upload';
 import { LibraryPicker, type LibraryItem } from '@/components/LibraryPicker';
+import { useWatermarkText } from '@/components/useWatermarkText';
 import { VariantsForm } from '../../[albumId]/_components/VariantsForm';
 import type { AlbumColor } from '@/lib/supabase/types';
 import { createProduct } from '../actions';
@@ -41,6 +42,7 @@ export function NewProductForm({
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const watermark = useWatermarkText(vendorId);
 
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
@@ -126,6 +128,7 @@ export function NewProductForm({
           supabase,
           file,
           vendorId,
+          watermark,
         );
         newOnes.push({
           mediaId,

@@ -27,6 +27,8 @@ type Profile = {
   contact_telegram: string | null;
   contact_instagram: string | null;
   contact_email: string | null;
+  watermark_enabled: boolean;
+  watermark_text: string | null;
   created_at: string;
 };
 
@@ -44,6 +46,7 @@ type Album = {
   sizes: string[];
   colors: AlbumColor[];
   is_public: boolean;
+  is_featured: boolean;
   password_hash: string | null;
   cover_photo_id: string | null;
   photo_count: number;

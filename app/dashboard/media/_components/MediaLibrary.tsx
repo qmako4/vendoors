@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { photoUrl } from '@/lib/storage';
 import { uploadToLibrary } from '@/lib/upload';
+import { useWatermarkText } from '@/components/useWatermarkText';
 
 // Hide the auto-detect entry point until we revisit grouping reliability.
 // The /api/library/auto-detect route handler stays deployed and works on its
@@ -36,6 +37,7 @@ export function MediaLibrary({
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const watermark = useWatermarkText(vendorId);
   const [items, setItems] = useState<LibItem[]>(initial);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -59,6 +61,7 @@ export function MediaLibrary({
           supabase,
           file,
           vendorId,
+          watermark,
         );
         inserted.push({
           id: mediaId,

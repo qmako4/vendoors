@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { photoUrl } from '@/lib/storage';
 import { CopyLinkButton } from './_components/CopyLinkButton';
 import { DeleteAlbumButton } from './_components/DeleteAlbumButton';
+import { FeatureToggle } from './_components/FeatureToggle';
 
 export const metadata: Metadata = { title: 'Dashboard' };
 
@@ -23,8 +24,9 @@ export default async function DashboardPage() {
   // Flat list of all this vendor's products (every album they own).
   const { data: products } = await supabase
     .from('albums')
-    .select('id, slug, title, photo_count, is_public, updated_at')
+    .select('id, slug, title, photo_count, is_public, is_featured, updated_at')
     .eq('vendor_id', user!.id)
+    .order('is_featured', { ascending: false })
     .order('updated_at', { ascending: false });
 
   // Pull the cover photo (first by sort_order) for each product so the list
@@ -155,6 +157,7 @@ export default async function DashboardPage() {
                     </div>
                   </div>
                   <div className="dash-album-actions">
+                    <FeatureToggle albumId={p.id} initial={p.is_featured} />
                     {handle && (
                       <>
                         <CopyLinkButton url={`/${handle}/${p.slug}`} />

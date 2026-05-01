@@ -28,6 +28,7 @@ export async function uploadToLibrary(
   supabase: SupabaseLike,
   file: File,
   vendorId: string,
+  watermarkText?: string | null,
 ): Promise<UploadedMedia> {
   // Detect images even when the browser leaves file.type empty (iPhone HEIC).
   const looksLikeImage =
@@ -35,7 +36,9 @@ export async function uploadToLibrary(
     /\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(file.name);
   if (!looksLikeImage) throw new Error('Not an image');
 
-  const { blob, width, height, type } = await resizeForUpload(file);
+  const { blob, width, height, type } = await resizeForUpload(file, {
+    watermarkText,
+  });
   const ext =
     type === 'image/jpeg'
       ? 'jpg'
