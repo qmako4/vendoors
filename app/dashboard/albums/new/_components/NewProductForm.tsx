@@ -60,6 +60,7 @@ export function NewProductForm({
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [lastCreated, setLastCreated] = useState<{ id: string; title: string } | null>(null);
 
   // Auto-generate the slug from the title until the user types into the slug field.
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
@@ -194,7 +195,21 @@ export function NewProductForm({
     });
 
     if (result.ok) {
-      router.push(`/dashboard/albums/${result.albumId}`);
+      // Stay on the page so the user can keep cranking out products.
+      // Stash the just-created product so we can show "edit it ↗" + reset.
+      setLastCreated({ id: result.albumId, title });
+      setTitle('');
+      setSlug('');
+      setDescription('');
+      setCategoryIds(new Set());
+      setSizes([]);
+      setColors([]);
+      setPhotos([]);
+      setSubmitting(false);
+      // Force the dashboard layout to re-fetch (so product count updates).
+      router.refresh();
+      // Scroll back to top so the user sees the success banner + empty form.
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setErr(result.error);
       setSubmitting(false);
@@ -203,6 +218,31 @@ export function NewProductForm({
 
   return (
     <form onSubmit={onSubmit} className="dash-form">
+      {lastCreated && (
+        <div className="created-banner">
+          <span className="created-banner-icon mono">✓</span>
+          <div className="created-banner-text">
+            <strong>Created &ldquo;{lastCreated.title}&rdquo;.</strong>{' '}
+            <Link
+              href={`/dashboard/albums/${lastCreated.id}`}
+              className="created-banner-link mono"
+            >
+              edit it →
+            </Link>
+            <span className="created-banner-sub mono">
+              {' '}· or just keep filling the form below to add another.
+            </span>
+          </div>
+          <button
+            type="button"
+            className="created-banner-close"
+            onClick={() => setLastCreated(null)}
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <label className="dash-field">
         <span className="mono">TITLE</span>
         <input

@@ -16,18 +16,22 @@ export default async function Page({ params }: { params: Params }) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // RLS restricts to albums owned by this user's galleries — no need to
+  // filter by vendor_id (which is the gallery id, not the user id).
   const { data: album } = await supabase
     .from('albums')
-    .select('id, slug, title, photo_count, is_public')
+    .select('id, slug, title, photo_count, is_public, vendor_id')
     .eq('id', albumId)
-    .eq('vendor_id', user!.id)
     .maybeSingle();
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('handle')
-    .eq('id', user!.id)
-    .maybeSingle();
+  // Fetch the gallery's profile (for the share URL handle).
+  const { data: profile } = album
+    ? await supabase
+        .from('profiles')
+        .select('handle')
+        .eq('id', album.vendor_id)
+        .maybeSingle()
+    : { data: null };
 
   if (!album) notFound();
 

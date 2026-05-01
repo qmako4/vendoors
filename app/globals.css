@@ -1035,6 +1035,27 @@ em { font-style: italic; }
 .dash-empty-h { font-size: 11px; color: var(--ink-3); letter-spacing: 0.16em; }
 .dash-empty-sub { max-width: 380px; font-size: 14px; color: var(--ink-2); margin: 0 0 8px; }
 
+/* "Just created" success banner on the new-product form */
+.created-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--good-soft); color: var(--good);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 4px;
+}
+.created-banner-icon { font-size: 18px; }
+.created-banner-text { flex: 1; font-size: 13px; line-height: 1.4; }
+.created-banner-link {
+  text-decoration: underline; color: inherit;
+}
+.created-banner-sub { color: var(--good); opacity: 0.75; }
+.created-banner-close {
+  background: transparent; border: none; cursor: pointer;
+  color: inherit; opacity: 0.6; font-size: 14px;
+  padding: 4px;
+}
+.created-banner-close:hover { opacity: 1; }
+
 /* Multi-gallery switcher in nav */
 .gallery-switcher { position: relative; }
 .gallery-switcher-btn {

@@ -17,11 +17,11 @@ export default async function Page({ params }: { params: Params }) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // RLS handles ownership — no need to filter by vendor_id.
   const { data: album } = await supabase
     .from('albums')
-    .select('id, slug, title, description, links, sizes, colors, is_public')
+    .select('id, slug, title, description, links, sizes, colors, is_public, vendor_id')
     .eq('id', albumId)
-    .eq('vendor_id', user!.id)
     .maybeSingle();
 
   if (!album) notFound();
@@ -32,12 +32,12 @@ export default async function Page({ params }: { params: Params }) {
     ? (album.colors as AlbumColor[])
     : [];
 
-  // Fetch all of this vendor's categories + which ones this product is in.
+  // Fetch the album's gallery's categories + which ones this product is in.
   const [{ data: cats }, { data: assigned }] = await Promise.all([
     supabase
       .from('categories')
       .select('id, name, parent_id')
-      .eq('vendor_id', user!.id)
+      .eq('vendor_id', album.vendor_id)
       .order('name'),
     supabase
       .from('product_categories')
@@ -68,7 +68,7 @@ export default async function Page({ params }: { params: Params }) {
       <section className="dash-section">
         <AlbumMetaForm
           albumId={album.id}
-          vendorId={user!.id}
+          vendorId={album.vendor_id}
           categoryOptions={categoryOptions}
           initial={{
             title: album.title,
