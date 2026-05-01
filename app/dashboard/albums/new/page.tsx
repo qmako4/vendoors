@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { getActiveGallery } from '@/lib/active-gallery';
 import { NewProductForm } from './_components/NewProductForm';
 
 export const metadata: Metadata = { title: 'New product' };
 
 export default async function Page() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const active = await getActiveGallery();
+  const galleryId = active?.id ?? '';
 
   const { data: cats } = await supabase
     .from('categories')
     .select('id, name')
-    .eq('vendor_id', user!.id)
+    .eq('vendor_id', galleryId)
     .order('name');
   const categories = (cats ?? []) as Array<{ id: string; name: string }>;
 
@@ -32,7 +32,7 @@ export default async function Page() {
         </p>
       </header>
 
-      <NewProductForm vendorId={user!.id} categories={categories} />
+      <NewProductForm vendorId={galleryId} categories={categories} />
     </div>
   );
 }

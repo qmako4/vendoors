@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/server';
 import { photoUrl } from '@/lib/storage';
+import { getActiveGallery } from '@/lib/active-gallery';
 import { CopyLinkButton } from './_components/CopyLinkButton';
 import { DeleteAlbumButton } from './_components/DeleteAlbumButton';
 import { FeatureToggle } from './_components/FeatureToggle';
@@ -11,21 +12,18 @@ export const metadata: Metadata = { title: 'Dashboard' };
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const active = await getActiveGallery();
+  const galleryId = active?.id ?? '';
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('handle, display_name')
-    .eq('id', user!.id)
-    .maybeSingle();
+  const profile = active
+    ? { handle: active.handle, display_name: active.display_name }
+    : null;
 
   // Flat list of all this vendor's products (every album they own).
   const { data: products } = await supabase
     .from('albums')
     .select('id, slug, title, photo_count, is_public, is_featured, updated_at')
-    .eq('vendor_id', user!.id)
+    .eq('vendor_id', galleryId)
     .order('is_featured', { ascending: false })
     .order('updated_at', { ascending: false });
 
@@ -54,7 +52,7 @@ export default async function DashboardPage() {
   const { count: categoryCount } = await supabase
     .from('categories')
     .select('id', { count: 'exact', head: true })
-    .eq('vendor_id', user!.id);
+    .eq('vendor_id', galleryId);
 
   const productCount = products?.length ?? 0;
   const handle = profile?.handle ?? null;

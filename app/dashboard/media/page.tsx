@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { getActiveGallery } from '@/lib/active-gallery';
 import { MediaLibrary, type LibItem } from './_components/MediaLibrary';
 
 export const metadata: Metadata = { title: 'Library' };
 
 export default async function Page() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const active = await getActiveGallery();
+  const galleryId = active?.id ?? '';
 
   const { data: items } = await supabase
     .from('media')
     .select('id, storage_key, width, height, filename, created_at')
-    .eq('vendor_id', user!.id)
+    .eq('vendor_id', galleryId)
     .order('created_at', { ascending: false });
 
   const all = (items ?? []) as LibItem[];
@@ -25,7 +25,7 @@ export default async function Page() {
     .from('photos')
     .select('media_id, albums!inner(id, title)')
     .not('media_id', 'is', null)
-    .eq('albums.vendor_id', user!.id);
+    .eq('albums.vendor_id', galleryId);
 
   type UsageRow = {
     media_id: string;
@@ -65,7 +65,7 @@ export default async function Page() {
 
       <section className="dash-section">
         <MediaLibrary
-          vendorId={user!.id}
+          vendorId={galleryId}
           initial={all}
           unassignedCount={unassignedCount}
           usage={usage}

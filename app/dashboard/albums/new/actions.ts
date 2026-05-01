@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getActiveGallery } from '@/lib/active-gallery';
 import type { AlbumColor } from '@/lib/supabase/types';
 
 export type CreateProductInput = {
@@ -43,6 +44,10 @@ export async function createProduct(
   } = await supabase.auth.getUser();
   if (!user) redirect('/');
 
+  const active = await getActiveGallery();
+  if (!active) redirect('/dashboard/galleries');
+  const galleryId = active.id;
+
   const title = input.title.trim();
   const slug = input.slug
     .trim()
@@ -58,7 +63,7 @@ export async function createProduct(
   const { data: album, error: albumErr } = await supabase
     .from('albums')
     .insert({
-      vendor_id: user.id,
+      vendor_id: galleryId,
       title,
       slug,
       description: input.description?.trim() || null,
@@ -79,7 +84,7 @@ export async function createProduct(
       .from('media')
       .select('id, storage_key, width, height')
       .in('id', input.mediaIds)
-      .eq('vendor_id', user.id);
+      .eq('vendor_id', galleryId);
 
     if (mediaErr) {
       await supabase.from('albums').delete().eq('id', album.id);

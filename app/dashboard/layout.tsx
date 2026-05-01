@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { listGalleries, getActiveGallery } from '@/lib/active-gallery';
 import { DashboardNav } from './_components/DashboardNav';
 
 export default async function DashboardLayout({
@@ -14,18 +15,15 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('handle, display_name')
-    .eq('id', user.id)
-    .maybeSingle();
+  const galleries = await listGalleries();
+  const active = await getActiveGallery();
 
   return (
     <div className="dash">
       <DashboardNav
         email={user.email ?? ''}
-        handle={profile?.handle ?? null}
-        displayName={profile?.display_name ?? null}
+        galleries={galleries}
+        activeId={active?.id ?? null}
       />
       <main className="dash-main">{children}</main>
     </div>

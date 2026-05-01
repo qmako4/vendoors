@@ -14,6 +14,7 @@ export type Json =
 
 type Profile = {
   id: string;
+  owner_id: string;
   handle: string;
   display_name: string;
   bio: string | null;
@@ -146,7 +147,7 @@ export type Database = {
     Tables: {
       profiles: {
         Row: Profile;
-        Insert: Insertable<Profile, 'id' | 'handle' | 'display_name'>;
+        Insert: Insertable<Profile, 'owner_id' | 'handle' | 'display_name'>;
         Update: Updateable<Profile>;
         Relationships: [];
       };

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { getActiveGallery } from '@/lib/active-gallery';
 import {
   CategoriesManager,
   type CategoryRow,
@@ -10,14 +11,13 @@ export const metadata: Metadata = { title: 'Categories' };
 
 export default async function Page() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const active = await getActiveGallery();
+  const galleryId = active?.id ?? '';
 
   const { data: cats } = await supabase
     .from('categories')
     .select('id, name, slug, parent_id, sort_order')
-    .eq('vendor_id', user!.id)
+    .eq('vendor_id', galleryId)
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });
 
@@ -38,7 +38,7 @@ export default async function Page() {
 
       <section className="dash-section">
         <CategoriesManager
-          vendorId={user!.id}
+          vendorId={galleryId}
           initial={(cats ?? []) as CategoryRow[]}
         />
       </section>

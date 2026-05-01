@@ -2,22 +2,22 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getActiveGallery } from '@/lib/active-gallery';
 import { ProfileForm } from './_components/ProfileForm';
 
 export const metadata: Metadata = { title: 'Profile' };
 
 export default async function Page() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const active = await getActiveGallery();
+  if (!active) redirect('/');
 
   const { data: profile } = await supabase
     .from('profiles')
     .select(
       'id, handle, display_name, bio, city, contact_whatsapp, contact_wechat, contact_telegram, contact_instagram, contact_email, watermark_enabled, watermark_text',
     )
-    .eq('id', user!.id)
+    .eq('id', active.id)
     .maybeSingle();
 
   if (!profile) redirect('/');
