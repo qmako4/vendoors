@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/server';
+import { photoUrl } from '@/lib/storage';
 import { CopyLinkButton } from './_components/CopyLinkButton';
 import { DeleteAlbumButton } from './_components/DeleteAlbumButton';
 
@@ -24,6 +26,27 @@ export default async function DashboardPage() {
     .select('id, slug, title, photo_count, is_public, updated_at')
     .eq('vendor_id', user!.id)
     .order('updated_at', { ascending: false });
+
+  // Pull the cover photo (first by sort_order) for each product so the list
+  // shows a thumbnail next to the title.
+  const productIds = (products ?? []).map((p) => p.id);
+  const coverByProduct = new Map<string, string>();
+  if (productIds.length > 0) {
+    const { data: photos } = await supabase
+      .from('photos')
+      .select('album_id, storage_key, sort_order, created_at')
+      .in('album_id', productIds)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    for (const p of (photos ?? []) as Array<{
+      album_id: string;
+      storage_key: string;
+    }>) {
+      if (!coverByProduct.has(p.album_id)) {
+        coverByProduct.set(p.album_id, p.storage_key);
+      }
+    }
+  }
 
   // Category counts so the user can see how many categories they have.
   const { count: categoryCount } = await supabase
@@ -96,43 +119,70 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <ul className="dash-album-list">
-            {products!.map((p) => (
-              <li key={p.id} className="dash-album-row">
-                <div className="dash-album-meta">
-                  <div className="dash-album-title">{p.title}</div>
-                  <div className="dash-album-sub mono">
-                    {handle ? `vendoors.co / ${handle} / ${p.slug}` : p.slug} ·{' '}
-                    {p.photo_count} photos · {p.is_public ? 'public' : 'private'}
-                  </div>
-                </div>
-                <div className="dash-album-actions">
-                  {handle && (
-                    <>
-                      <CopyLinkButton url={`/${handle}/${p.slug}`} />
-                      <Link
-                        href={`/${handle}/${p.slug}`}
-                        className="dash-link mono"
-                        target="_blank"
-                      >
-                        view ↗
-                      </Link>
-                    </>
-                  )}
+            {products!.map((p) => {
+              const cover = coverByProduct.get(p.id);
+              return (
+                <li key={p.id} className="dash-album-row">
                   <Link
                     href={`/dashboard/albums/${p.id}`}
-                    className="dash-link mono"
+                    className="dash-album-thumb"
+                    aria-label={`Edit ${p.title}`}
                   >
-                    edit
+                    {cover ? (
+                      <Image
+                        src={photoUrl(cover)}
+                        alt={p.title}
+                        fill
+                        sizes="64px"
+                        style={{ objectFit: 'cover' }}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="dash-album-thumb-empty mono">—</span>
+                    )}
                   </Link>
-                  <DeleteAlbumButton
-                    albumId={p.id}
-                    albumTitle={p.title}
-                    kind="product"
-                    variant="link"
-                  />
-                </div>
-              </li>
-            ))}
+                  <div className="dash-album-meta">
+                    <Link
+                      href={`/dashboard/albums/${p.id}`}
+                      className="dash-album-title-link"
+                    >
+                      <div className="dash-album-title">{p.title}</div>
+                    </Link>
+                    <div className="dash-album-sub mono">
+                      {handle ? `vendoors.co / ${handle} / ${p.slug}` : p.slug} ·{' '}
+                      {p.photo_count} photos ·{' '}
+                      {p.is_public ? 'public' : 'private'}
+                    </div>
+                  </div>
+                  <div className="dash-album-actions">
+                    {handle && (
+                      <>
+                        <CopyLinkButton url={`/${handle}/${p.slug}`} />
+                        <Link
+                          href={`/${handle}/${p.slug}`}
+                          className="dash-link mono"
+                          target="_blank"
+                        >
+                          view ↗
+                        </Link>
+                      </>
+                    )}
+                    <Link
+                      href={`/dashboard/albums/${p.id}`}
+                      className="dash-link mono"
+                    >
+                      edit
+                    </Link>
+                    <DeleteAlbumButton
+                      albumId={p.id}
+                      albumTitle={p.title}
+                      kind="product"
+                      variant="link"
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
