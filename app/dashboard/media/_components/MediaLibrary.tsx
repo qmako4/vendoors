@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { photoUrl } from '@/lib/storage';
+import { thumbUrl } from '@/lib/storage';
 import { uploadToLibrary } from '@/lib/upload';
 import { useWatermarkText } from '@/components/useWatermarkText';
 
@@ -16,6 +16,7 @@ const AUTO_DETECT_ENABLED = false;
 export type LibItem = {
   id: string;
   storage_key: string;
+  thumb_storage_key: string | null;
   width: number;
   height: number;
   filename: string | null;
@@ -57,7 +58,7 @@ export function MediaLibrary({
     for (let i = 0; i < list.length; i++) {
       const file = list[i];
       try {
-        const { mediaId, storageKey, width, height } = await uploadToLibrary(
+        const { mediaId, storageKey, thumbStorageKey, width, height } = await uploadToLibrary(
           supabase,
           file,
           vendorId,
@@ -66,6 +67,7 @@ export function MediaLibrary({
         inserted.push({
           id: mediaId,
           storage_key: storageKey,
+          thumb_storage_key: thumbStorageKey,
           width,
           height,
           filename: file.name,
@@ -262,7 +264,7 @@ export function MediaLibrary({
               <div key={m.id} className={`media-tile ${isUsed ? 'is-used' : 'is-unused'}`}>
                 <div className="media-tile-cover">
                   <Image
-                    src={photoUrl(m.storage_key)}
+                    src={thumbUrl(m.storage_key, m.thumb_storage_key)}
                     alt={m.filename ?? ''}
                     fill
                     sizes="(max-width: 880px) 33vw, 14vw"

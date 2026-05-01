@@ -65,7 +65,7 @@ export function PhotoUploader({ albumId, vendorId, photos: initialPhotos }: Prop
 
       try {
         // Upload to storage + create media row in library.
-        const { mediaId, storageKey, width, height } = await uploadToLibrary(
+        const { mediaId, storageKey, thumbStorageKey, width, height } = await uploadToLibrary(
           supabase,
           file,
           vendorId,
@@ -79,6 +79,7 @@ export function PhotoUploader({ albumId, vendorId, photos: initialPhotos }: Prop
             album_id: albumId,
             media_id: mediaId,
             storage_key: storageKey,
+            thumb_storage_key: thumbStorageKey,
             width,
             height,
             sort_order: baseSort,

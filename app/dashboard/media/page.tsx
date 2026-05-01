@@ -13,7 +13,7 @@ export default async function Page() {
 
   const { data: items } = await supabase
     .from('media')
-    .select('id, storage_key, width, height, filename, created_at')
+    .select('id, storage_key, thumb_storage_key, width, height, filename, created_at')
     .eq('vendor_id', galleryId)
     .order('created_at', { ascending: false });
 

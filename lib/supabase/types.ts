@@ -60,6 +60,7 @@ type Photo = {
   album_id: string;
   media_id: string | null;
   storage_key: string;
+  thumb_storage_key: string | null;
   cf_image_id: string | null;
   width: number;
   height: number;
@@ -79,6 +80,7 @@ type MediaItem = {
   id: string;
   vendor_id: string;
   storage_key: string;
+  thumb_storage_key: string | null;
   width: number;
   height: number;
   filename: string | null;

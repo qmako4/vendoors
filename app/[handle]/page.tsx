@@ -39,20 +39,21 @@ async function fetchVendor(handle: string) {
 
   // Pull first 5 photos for each product (cover + 4 thumb strip).
   const ids = productRows.map((r) => r.id);
-  const photosByAlbum = new Map<string, string[]>();
+  const photosByAlbum = new Map<string, Array<{ key: string; thumb: string | null }>>();
   if (ids.length > 0) {
     const { data: photos } = await supabase
       .from('photos')
-      .select('album_id, storage_key, sort_order, created_at')
+      .select('album_id, storage_key, thumb_storage_key, sort_order, created_at')
       .in('album_id', ids)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     for (const p of (photos ?? []) as Array<{
       album_id: string;
       storage_key: string;
+      thumb_storage_key: string | null;
     }>) {
       const arr = photosByAlbum.get(p.album_id) ?? [];
-      if (arr.length < 5) arr.push(p.storage_key);
+      if (arr.length < 5) arr.push({ key: p.storage_key, thumb: p.thumb_storage_key });
       photosByAlbum.set(p.album_id, arr);
     }
   }
@@ -75,14 +76,16 @@ async function fetchVendor(handle: string) {
   }
 
   const products: ProductWithCategories[] = productRows.map((row) => {
-    const keys = photosByAlbum.get(row.id) ?? [];
+    const photos = photosByAlbum.get(row.id) ?? [];
     return {
       ...toDisplayAlbum({
         ...row,
         profiles: { display_name: profile.display_name },
       }),
-      coverStorageKey: keys[0] ?? null,
-      thumbStorageKeys: keys.slice(1, 5),
+      coverStorageKey: photos[0]?.key ?? null,
+      coverThumbKey: photos[0]?.thumb ?? null,
+      thumbStorageKeys: photos.slice(1, 5).map((p) => p.key),
+      thumbStripThumbKeys: photos.slice(1, 5).map((p) => p.thumb),
       categoryIds: categoryIdsByProduct.get(row.id) ?? [],
       isFeatured: row.is_featured,
     };

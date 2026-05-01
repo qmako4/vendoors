@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
-import { photoUrl } from '@/lib/storage';
+import { thumbUrl } from '@/lib/storage';
 
 export type LibraryItem = {
   id: string;
   storage_key: string;
+  thumb_storage_key: string | null;
   width: number;
   height: number;
   filename: string | null;
@@ -43,7 +44,7 @@ export function LibraryPicker({ vendorId, open, onClose, onSelect }: Props) {
       const [mediaRes, usageRes] = await Promise.all([
         supabase
           .from('media')
-          .select('id, storage_key, width, height, filename')
+          .select('id, storage_key, thumb_storage_key, width, height, filename')
           .eq('vendor_id', vendorId)
           .order('created_at', { ascending: false }),
         supabase
@@ -178,7 +179,7 @@ export function LibraryPicker({ vendorId, open, onClose, onSelect }: Props) {
                         title={tooltip}
                       >
                         <Image
-                          src={photoUrl(m.storage_key)}
+                          src={thumbUrl(m.storage_key, m.thumb_storage_key)}
                           alt={m.filename ?? ''}
                           fill
                           sizes="120px"

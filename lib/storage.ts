@@ -20,6 +20,14 @@ export type PhotoUrlOptions = {
  * To upgrade later: switch callers from `photoUrl(key)` to `photoUrl(key, { width: 600 })`
  * for thumbnails. Free tier returns 402 on /render/image/, so don't use opts there.
  */
+/** Pick the smaller thumb URL when available, else fall back to full size. */
+export function thumbUrl(
+  fullKey: string,
+  thumbKey: string | null | undefined,
+): string {
+  return photoUrl(thumbKey || fullKey);
+}
+
 export function photoUrl(storageKey: string, opts?: PhotoUrlOptions): string {
   if (!opts || (!opts.width && !opts.height)) {
     return `${SUPABASE_URL}/storage/v1/object/public/photos/${storageKey}`;
@@ -37,7 +45,9 @@ export function photoUrl(storageKey: string, opts?: PhotoUrlOptions): string {
 // ─────────────────────────────────────────────────────────────────────
 
 const MAX_DIM = 1600; // px on the longest edge — looks crisp on retina
-const QUALITY = 0.85; // JPEG quality
+const THUMB_DIM = 480; // px on the longest edge — used in grids/pickers
+const QUALITY = 0.85; // JPEG quality for full-size
+const THUMB_QUALITY = 0.78; // tighter JPEG quality for thumbs
 
 export type ResizedImage = {
   blob: Blob;
@@ -111,7 +121,7 @@ function drawWatermark(
   ctx.restore();
 }
 
-function loadImage(file: File): Promise<HTMLImageElement> {
+function loadImage(file: File | Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -125,4 +135,31 @@ function loadImage(file: File): Promise<HTMLImageElement> {
     };
     img.src = url;
   });
+}
+
+/**
+ * Make a small (480px max) thumbnail from a full-size resized blob. Used for
+ * grids and pickers where loading the full 1600px source is wasteful.
+ */
+export async function makeThumb(fullBlob: Blob): Promise<ResizedImage> {
+  const img = await loadImage(fullBlob);
+  const { naturalWidth: srcW, naturalHeight: srcH } = img;
+  const ratio = srcW > THUMB_DIM || srcH > THUMB_DIM
+    ? Math.min(THUMB_DIM / srcW, THUMB_DIM / srcH)
+    : 1;
+  const dstW = Math.max(1, Math.round(srcW * ratio));
+  const dstH = Math.max(1, Math.round(srcH * ratio));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = dstW;
+  canvas.height = dstH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context unavailable');
+  ctx.drawImage(img, 0, 0, dstW, dstH);
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/jpeg', THUMB_QUALITY),
+  );
+  if (!blob) throw new Error('Could not encode thumbnail');
+  return { blob, width: dstW, height: dstH, type: 'image/jpeg' };
 }

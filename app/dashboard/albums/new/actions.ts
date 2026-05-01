@@ -82,7 +82,7 @@ export async function createProduct(
   if (input.mediaIds.length > 0) {
     const { data: mediaRows, error: mediaErr } = await supabase
       .from('media')
-      .select('id, storage_key, width, height')
+      .select('id, storage_key, thumb_storage_key, width, height')
       .in('id', input.mediaIds)
       .eq('vendor_id', galleryId);
 
@@ -91,7 +91,7 @@ export async function createProduct(
       return { ok: false, error: `Could not attach photos: ${mediaErr.message}` };
     }
 
-    type MediaRow = { id: string; storage_key: string; width: number; height: number };
+    type MediaRow = { id: string; storage_key: string; thumb_storage_key: string | null; width: number; height: number };
     const byId = new Map(((mediaRows ?? []) as MediaRow[]).map((m) => [m.id, m]));
 
     const photoRows = input.mediaIds
@@ -102,6 +102,7 @@ export async function createProduct(
           album_id: album.id,
           media_id: m.id,
           storage_key: m.storage_key,
+          thumb_storage_key: m.thumb_storage_key,
           width: m.width,
           height: m.height,
           sort_order: i,

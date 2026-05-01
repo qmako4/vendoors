@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { StripedPlaceholder } from './StripedPlaceholder';
-import { photoUrl } from '@/lib/storage';
+import { thumbUrl } from '@/lib/storage';
 import type { DisplayAlbum } from '@/lib/albums';
 
 export type GalleryAlbum = DisplayAlbum & {
   coverStorageKey: string | null;
+  coverThumbKey: string | null;
   thumbStorageKeys: string[];
+  thumbStripThumbKeys: (string | null)[];
 };
 
 // At 7 cols on a ~1480px screen, each cover is roughly 200px. On mobile
@@ -35,7 +37,7 @@ export function AlbumGrid({
           <div className="gal-cover">
             {a.coverStorageKey ? (
               <Image
-                src={photoUrl(a.coverStorageKey)}
+                src={thumbUrl(a.coverStorageKey, a.coverThumbKey)}
                 alt={a.title}
                 fill
                 sizes={COVER_SIZES}
@@ -58,11 +60,12 @@ export function AlbumGrid({
           <div className="gal-strip">
             {Array.from({ length: 4 }).map((_, j) => {
               const key = a.thumbStorageKeys[j];
+              const thumbKey = a.thumbStripThumbKeys[j];
               return (
                 <div key={j} className="gal-strip-cell">
                   {key ? (
                     <Image
-                      src={photoUrl(key)}
+                      src={thumbUrl(key, thumbKey)}
                       alt=""
                       fill
                       sizes={STRIP_SIZES}
