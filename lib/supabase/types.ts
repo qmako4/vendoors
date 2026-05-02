@@ -86,6 +86,7 @@ type MediaItem = {
   filename: string | null;
   classification: MediaClassification | null;
   processed_at: string | null;
+  derived_from_media_id: string | null;
   created_at: string;
 };
 

@@ -1035,6 +1035,29 @@ em { font-style: italic; }
 .dash-empty-h { font-size: 11px; color: var(--ink-3); letter-spacing: 0.16em; }
 .dash-empty-sub { max-width: 380px; font-size: 14px; color: var(--ink-2); margin: 0 0 8px; }
 
+/* Library filter row (toggle to hide processed originals) */
+.lib-filter-bar {
+  display: flex; gap: 16px;
+  background: var(--bg-2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 11px; color: var(--ink-2);
+  align-items: center;
+}
+.lib-filter-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  cursor: pointer;
+}
+.lib-filter-toggle input { accent-color: var(--ink); }
+.lib-filter-count { color: var(--ink-3); margin-left: 2px; }
+
+.bgr-delete-toggle {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-top: 4px;
+}
+
 /* Media library top action bar (links to BG remover etc.) */
 .media-actions-bar {
   display: flex; gap: 8px; flex-wrap: wrap;

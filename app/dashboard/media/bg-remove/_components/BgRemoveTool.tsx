@@ -51,6 +51,7 @@ export function BgRemoveTool({
   const [customHex, setCustomHex] = useState('#FFFFFF');
   const [bgImageFile, setBgImageFile] = useState<File | null>(null);
   const [bgImagePreview, setBgImagePreview] = useState<string | null>(null);
+  const [deleteOriginals, setDeleteOriginals] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [statuses, setStatuses] = useState<Record<string, { state: ItemState; error?: string }>>(
@@ -136,7 +137,8 @@ export function BgRemoveTool({
           if (!thumbErr) thumbStorageKey = thumbKey;
         }
 
-        // 5) Insert media row for the new image.
+        // 5) Insert media row for the new image. Track the derivation so
+        // the library can hide originals that have been processed.
         const baseName = item.filename?.replace(/\.[^.]+$/, '') ?? 'photo';
         const { error: insErr } = await supabase.from('media').insert({
           vendor_id: vendorId,
@@ -145,12 +147,21 @@ export function BgRemoveTool({
           width,
           height,
           filename: `${baseName}-clean.jpg`,
+          derived_from_media_id: item.id,
         });
         if (insErr) {
           await supabase.storage.from('photos').remove(
             thumbStorageKey ? [fullKey, thumbStorageKey] : [fullKey],
           );
           throw insErr;
+        }
+
+        // 6) Optionally remove the original (DB row + storage files).
+        if (deleteOriginals) {
+          await supabase.from('media').delete().eq('id', item.id);
+          const keysToRemove = [item.storage_key];
+          if (item.thumb_storage_key) keysToRemove.push(item.thumb_storage_key);
+          await supabase.storage.from('photos').remove(keysToRemove);
         }
 
         setStatuses((s) => ({ ...s, [item.id]: { state: 'done' } }));
@@ -292,10 +303,27 @@ export function BgRemoveTool({
           </div>
         </div>
 
+        <label className="dash-checkbox bgr-delete-toggle">
+          <input
+            type="checkbox"
+            checked={deleteOriginals}
+            onChange={(e) => setDeleteOriginals(e.target.checked)}
+            disabled={busy}
+          />
+          <span>
+            <span className="dash-check-h">Delete originals after processing</span>
+            <span className="dash-check-sub mono">
+              Removes the source images permanently. Off by default — keep
+              originals as backup in case you want to re-process later.
+            </span>
+          </span>
+        </label>
+
         <p className="dash-section-hint mono">
           First run downloads a ~30MB model (one-time). Each image takes 5-15
-          seconds depending on your device. Originals are kept untouched —
-          processed copies are added to your library as new images.
+          seconds depending on your device. {deleteOriginals
+            ? 'Originals will be deleted as each processes successfully.'
+            : 'Originals stay in your library — toggle "Delete originals" above to remove them automatically.'}
         </p>
       </section>
 

@@ -13,11 +13,17 @@ export default async function Page() {
 
   const { data: items } = await supabase
     .from('media')
-    .select('id, storage_key, thumb_storage_key, width, height, filename, created_at')
+    .select('id, storage_key, thumb_storage_key, width, height, filename, derived_from_media_id, created_at')
     .eq('vendor_id', galleryId)
     .order('created_at', { ascending: false });
 
   const all = (items ?? []) as LibItem[];
+
+  // Identify originals that have been processed (something points back at them).
+  const processedOriginalIds = new Set<string>();
+  for (const m of all) {
+    if (m.derived_from_media_id) processedOriginalIds.add(m.derived_from_media_id);
+  }
 
   // Build a map: media_id → list of products it's attached to.
   // We need product titles for the hover tooltip, so we join photos → albums.
@@ -69,6 +75,7 @@ export default async function Page() {
           initial={all}
           unassignedCount={unassignedCount}
           usage={usage}
+          processedOriginalIds={Array.from(processedOriginalIds)}
         />
       </section>
     </div>

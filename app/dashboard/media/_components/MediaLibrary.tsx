@@ -20,6 +20,7 @@ export type LibItem = {
   width: number;
   height: number;
   filename: string | null;
+  derived_from_media_id?: string | null;
   created_at: string;
 };
 
@@ -30,11 +31,14 @@ export function MediaLibrary({
   initial,
   unassignedCount,
   usage,
+  processedOriginalIds,
 }: {
   vendorId: string;
   initial: LibItem[];
   unassignedCount: number;
   usage: LibUsage;
+  /** Media ids that have a derivative (e.g. a bg-removed copy) pointing at them. */
+  processedOriginalIds: string[];
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,6 +49,13 @@ export function MediaLibrary({
   const [err, setErr] = useState<string | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [detectResult, setDetectResult] = useState<string | null>(null);
+  const [hideProcessedOriginals, setHideProcessedOriginals] = useState(true);
+
+  const processedSet = new Set(processedOriginalIds);
+  const visibleItems = hideProcessedOriginals
+    ? items.filter((m) => !processedSet.has(m.id))
+    : items;
+  const hiddenCount = items.length - visibleItems.length;
 
   async function upload(files: FileList) {
     setBusy(true);
@@ -249,6 +260,24 @@ export function MediaLibrary({
 
       {err && <div className="auth-err mono">{err}</div>}
 
+      {processedOriginalIds.length > 0 && (
+        <div className="lib-filter-bar mono">
+          <label className="lib-filter-toggle">
+            <input
+              type="checkbox"
+              checked={hideProcessedOriginals}
+              onChange={(e) => setHideProcessedOriginals(e.target.checked)}
+            />
+            <span>
+              Hide processed originals
+              {hiddenCount > 0 && hideProcessedOriginals && (
+                <span className="lib-filter-count">  ({hiddenCount} hidden)</span>
+              )}
+            </span>
+          </label>
+        </div>
+      )}
+
       {items.length === 0 ? (
         <div className="dash-empty">
           <div className="dash-empty-icon">◇</div>
@@ -258,9 +287,17 @@ export function MediaLibrary({
             without re-uploading.
           </p>
         </div>
+      ) : visibleItems.length === 0 ? (
+        <div className="dash-empty">
+          <div className="dash-empty-h mono">EVERYTHING&apos;S BEEN PROCESSED</div>
+          <p className="dash-empty-sub">
+            All your originals have been processed. Toggle &ldquo;Hide processed
+            originals&rdquo; off to see them again.
+          </p>
+        </div>
       ) : (
         <div className="media-grid">
-          {items.map((m) => {
+          {visibleItems.map((m) => {
             const inProducts = usage[m.id] ?? [];
             const isUsed = inProducts.length > 0;
             const tooltipTitle = isUsed
