@@ -46,9 +46,7 @@ export function BgRemoveTool({
 }) {
   const router = useRouter();
   const bgFileRef = useRef<HTMLInputElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const dragStateRef = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
-  const [dragRect, setDragRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const lastClickedIdRef = useRef<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bgMode, setBgMode] = useState<'color' | 'image'>('color');
   const [bgColor, setBgColor] = useState('#FFFFFF');
@@ -73,85 +71,24 @@ export function BgRemoveTool({
     return () => URL.revokeObjectURL(url);
   }, [bgImageBlob]);
 
-  // Drag-to-select: hold mouse button down and drag a rectangle across tiles
-  // to select them all at once.
-  useEffect(() => {
-    function onMove(e: MouseEvent) {
-      const drag = dragStateRef.current;
-      if (!drag) return;
-      const dx = e.clientX - drag.startX;
-      const dy = e.clientY - drag.startY;
-      // Only kick into "drag mode" after moving a few pixels — preserves
-      // single-click toggling for taps.
-      if (!drag.active && Math.hypot(dx, dy) < 5) return;
-      drag.active = true;
-      e.preventDefault();
-
-      const grid = gridRef.current;
-      if (!grid) return;
-      const gr = grid.getBoundingClientRect();
-      const x1 = drag.startX - gr.left + grid.scrollLeft;
-      const y1 = drag.startY - gr.top + grid.scrollTop;
-      const x2 = e.clientX - gr.left + grid.scrollLeft;
-      const y2 = e.clientY - gr.top + grid.scrollTop;
-      const x = Math.min(x1, x2);
-      const y = Math.min(y1, y2);
-      const w = Math.abs(x2 - x1);
-      const h = Math.abs(y2 - y1);
-      setDragRect({ x, y, w, h });
-
-      // Find tiles whose bounding rect intersects the drag rect.
-      const tiles = grid.querySelectorAll<HTMLElement>('[data-tile-id]');
-      const next = new Set<string>();
-      tiles.forEach((tile) => {
-        const tr = tile.getBoundingClientRect();
-        const tl = tr.left - gr.left + grid.scrollLeft;
-        const tt = tr.top - gr.top + grid.scrollTop;
-        const tright = tl + tr.width;
-        const tbottom = tt + tr.height;
-        if (tl < x + w && tright > x && tt < y + h && tbottom > y) {
-          const id = tile.dataset.tileId;
-          if (id) next.add(id);
-        }
-      });
-      setSelected(next);
-    }
-
-    function onUp() {
-      const drag = dragStateRef.current;
-      // Keep the active flag a tick longer so the click handler on a tile
-      // (fired by the same pointer event sequence) can be suppressed.
-      if (drag?.active) {
-        setTimeout(() => {
-          dragStateRef.current = null;
-        }, 0);
-      } else {
-        dragStateRef.current = null;
+  function handleTileClick(id: string, shiftKey: boolean) {
+    if (shiftKey && lastClickedIdRef.current && lastClickedIdRef.current !== id) {
+      // Shift+click: select the range from the last anchor to this tile.
+      const ids = initial.map((i) => i.id);
+      const fromIdx = ids.indexOf(lastClickedIdRef.current);
+      const toIdx = ids.indexOf(id);
+      if (fromIdx >= 0 && toIdx >= 0) {
+        const [lo, hi] = fromIdx < toIdx ? [fromIdx, toIdx] : [toIdx, fromIdx];
+        setSelected((s) => {
+          const next = new Set(s);
+          for (let i = lo; i <= hi; i++) next.add(ids[i]);
+          return next;
+        });
+        return;
       }
-      setDragRect(null);
     }
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, []);
-
-  function onGridMouseDown(e: React.MouseEvent) {
-    if (busy) return;
-    if (e.button !== 0) return; // left-click only
-    dragStateRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      active: false,
-    };
-  }
-
-  function toggle(id: string) {
-    // Suppress the click that follows a drag-select.
-    if (dragStateRef.current?.active) return;
+    // Normal click: toggle this tile + remember it as the new anchor.
+    lastClickedIdRef.current = id;
     setSelected((s) => {
       const next = new Set(s);
       if (next.has(id)) next.delete(id);
@@ -413,10 +350,11 @@ export function BgRemoveTool({
         </label>
 
         <p className="dash-section-hint mono">
-          First run downloads a ~30MB model (one-time). Each image takes 5-15
-          seconds depending on your device. {deleteOriginals
+          Tip: click a tile to toggle it, or click one and shift-click another
+          to select everything in between. {deleteOriginals
             ? 'Originals will be deleted as each processes successfully.'
             : 'Originals stay in your library — toggle "Delete originals" above to remove them automatically.'}
+          First run downloads a ~30MB model (one-time).
         </p>
       </section>
 
@@ -433,22 +371,7 @@ export function BgRemoveTool({
           </p>
         </div>
       ) : (
-        <div
-          className="bgr-grid"
-          ref={gridRef}
-          onMouseDown={onGridMouseDown}
-        >
-          {dragRect && (
-            <div
-              className="bgr-drag-rect"
-              style={{
-                left: dragRect.x,
-                top: dragRect.y,
-                width: dragRect.w,
-                height: dragRect.h,
-              }}
-            />
-          )}
+        <div className="bgr-grid">
           {initial.map((m) => {
             const status = statuses[m.id]?.state;
             const sel = selected.has(m.id);
@@ -460,9 +383,8 @@ export function BgRemoveTool({
               <button
                 key={m.id}
                 type="button"
-                data-tile-id={m.id}
                 className={`bgr-tile ${sel ? 'selected' : ''} bgr-${status ?? 'idle'}`}
-                onClick={() => !busy && toggle(m.id)}
+                onClick={(e) => !busy && handleTileClick(m.id, e.shiftKey)}
                 disabled={busy}
                 style={{ background: tileBg }}
               >
