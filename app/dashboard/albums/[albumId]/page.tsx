@@ -86,7 +86,7 @@ export default async function Page({ params }: { params: Params }) {
         </div>
         <PhotoUploader
           albumId={album.id}
-          vendorId={user!.id}
+          vendorId={album.vendor_id}
           photos={photos ?? []}
         />
       </section>
