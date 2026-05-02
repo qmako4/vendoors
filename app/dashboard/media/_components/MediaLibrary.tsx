@@ -183,6 +183,12 @@ export function MediaLibrary({
 
   return (
     <div className="media-page">
+      <div className="media-actions-bar">
+        <a href="/dashboard/media/bg-remove" className="btn-ghost media-action">
+          ◌ Remove backgrounds (bulk) →
+        </a>
+      </div>
+
       <div
         className={`uploader-drop ${busy ? 'busy' : ''}`}
         onClick={() => !busy && inputRef.current?.click()}

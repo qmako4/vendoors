@@ -1035,6 +1035,105 @@ em { font-style: italic; }
 .dash-empty-h { font-size: 11px; color: var(--ink-3); letter-spacing: 0.16em; }
 .dash-empty-sub { max-width: 380px; font-size: 14px; color: var(--ink-2); margin: 0 0 8px; }
 
+/* Media library top action bar (links to BG remover etc.) */
+.media-actions-bar {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.media-action {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 14px;
+  font-size: 12px; letter-spacing: 0.04em;
+  font-family: var(--mono);
+}
+
+/* Bulk background-removal tool */
+.bgr-tool { display: flex; flex-direction: column; gap: 18px; }
+.bgr-controls {
+  background: var(--bg-2);
+  border-radius: 16px;
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.bgr-controls-row {
+  display: flex; flex-wrap: wrap;
+  justify-content: space-between; align-items: flex-end;
+  gap: 18px;
+}
+.bgr-label {
+  font-size: 10px; color: var(--ink-3);
+  letter-spacing: 0.14em; margin-bottom: 8px;
+}
+.bgr-color-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.bgr-color-chip {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--hair);
+  cursor: pointer;
+  padding: 0; position: relative;
+  transition: border-color 120ms, transform 120ms;
+}
+.bgr-color-chip:hover { transform: scale(1.08); }
+.bgr-color-chip.active { border-color: var(--ink); border-width: 3px; }
+.bgr-color-custom {
+  background-image: linear-gradient(45deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.bgr-color-custom input {
+  opacity: 0;
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  cursor: pointer;
+}
+.bgr-actions { display: flex; gap: 12px; align-items: center; }
+.bgr-actions .btn-primary { height: 42px; padding: 0 22px; }
+
+.bgr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.bgr-tile {
+  position: relative; aspect-ratio: 1 / 1;
+  background: var(--bgr-bg, var(--bg-2));
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 120ms;
+}
+.bgr-tile:hover { border-color: var(--hair-strong); }
+.bgr-tile.selected { border-color: var(--ink); }
+.bgr-tile:disabled { cursor: wait; }
+.bgr-check {
+  position: absolute; top: 6px; right: 6px;
+  background: var(--ink); color: #fff;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 11px;
+  z-index: 2;
+}
+.bgr-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 11px; color: var(--ink);
+  letter-spacing: 0.06em;
+  z-index: 3;
+}
+.bgr-overlay.bgr-done { background: var(--good-soft); color: var(--good); }
+.bgr-overlay.bgr-err { background: var(--accent-soft); color: var(--accent); padding: 8px; text-align: center; }
+.bgr-spinner {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--hair);
+  border-top-color: var(--ink);
+  animation: bgr-spin 0.7s linear infinite;
+}
+@keyframes bgr-spin { to { transform: rotate(360deg); } }
+
 /* "Just created" success banner on the new-product form */
 .created-banner {
   display: flex; align-items: center; gap: 12px;
