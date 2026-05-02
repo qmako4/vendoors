@@ -13,31 +13,58 @@ export async function removeBackground(url: string): Promise<Blob> {
   return lib.removeBackground(url);
 }
 
+export type Background =
+  | { kind: 'color'; hex: string }
+  | { kind: 'image'; blob: Blob };
+
 /**
- * Composite a transparent image onto a solid colored background and re-encode
- * as JPEG. This is what we save back to storage.
+ * Composite a transparent image onto a background (solid color OR image),
+ * re-encoded as JPEG. Backgrounds are scaled with object-fit: cover.
  */
-export async function compositeOnColor(
+export async function composite(
   transparentBlob: Blob,
-  bgColor: string,
+  background: Background,
   quality = 0.9,
 ): Promise<{ blob: Blob; width: number; height: number }> {
-  const img = await loadImage(transparentBlob);
-  const { naturalWidth: w, naturalHeight: h } = img;
+  const fg = await loadImage(transparentBlob);
+  const { naturalWidth: w, naturalHeight: h } = fg;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context unavailable');
-  // Fill with chosen color first, then draw the transparent image on top.
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(img, 0, 0, w, h);
+
+  if (background.kind === 'color') {
+    ctx.fillStyle = background.hex;
+    ctx.fillRect(0, 0, w, h);
+  } else {
+    const bg = await loadImage(background.blob);
+    const bw = bg.naturalWidth;
+    const bh = bg.naturalHeight;
+    // object-fit: cover — scale to fill, crop overflow centered
+    const scale = Math.max(w / bw, h / bh);
+    const sw = w / scale;
+    const sh = h / scale;
+    const sx = (bw - sw) / 2;
+    const sy = (bh - sh) / 2;
+    ctx.drawImage(bg, sx, sy, sw, sh, 0, 0, w, h);
+  }
+
+  ctx.drawImage(fg, 0, 0, w, h);
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, 'image/jpeg', quality),
   );
   if (!blob) throw new Error('Could not encode result');
   return { blob, width: w, height: h };
+}
+
+/** @deprecated use composite(blob, { kind: 'color', hex }) */
+export async function compositeOnColor(
+  transparentBlob: Blob,
+  bgColor: string,
+  quality = 0.9,
+): Promise<{ blob: Blob; width: number; height: number }> {
+  return composite(transparentBlob, { kind: 'color', hex: bgColor }, quality);
 }
 
 function loadImage(blob: Blob): Promise<HTMLImageElement> {

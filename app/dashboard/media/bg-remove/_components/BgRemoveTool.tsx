@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { thumbUrl, photoUrl, makeThumb } from '@/lib/storage';
-import { removeBackground, compositeOnColor } from '@/lib/bg-remove';
+import { removeBackground, composite, type Background } from '@/lib/bg-remove';
 
 type LibItem = {
   id: string;
@@ -44,14 +44,28 @@ export function BgRemoveTool({
   initial: LibItem[];
 }) {
   const router = useRouter();
+  const bgFileRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bgMode, setBgMode] = useState<'color' | 'image'>('color');
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [customHex, setCustomHex] = useState('#FFFFFF');
+  const [bgImageFile, setBgImageFile] = useState<File | null>(null);
+  const [bgImagePreview, setBgImagePreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [statuses, setStatuses] = useState<Record<string, { state: ItemState; error?: string }>>(
     {},
   );
+
+  useEffect(() => {
+    if (!bgImageFile) {
+      setBgImagePreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(bgImageFile);
+    setBgImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [bgImageFile]);
 
   function toggle(id: string) {
     setSelected((s) => {
@@ -72,11 +86,20 @@ export function BgRemoveTool({
 
   async function process() {
     if (selected.size === 0 || busy) return;
+    if (bgMode === 'image' && !bgImageFile) {
+      alert('Pick a background image first (or switch to a color).');
+      return;
+    }
     setBusy(true);
     setStatuses({});
     const items = initial.filter((i) => selected.has(i.id));
     setProgress({ done: 0, total: items.length });
     const supabase = createClient();
+
+    const background: Background =
+      bgMode === 'color'
+        ? { kind: 'color', hex: bgColor }
+        : { kind: 'image', blob: bgImageFile! };
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -86,10 +109,10 @@ export function BgRemoveTool({
         // 1) Run the model on the full-size image (transparent PNG out).
         const transparent = await removeBackground(photoUrl(item.storage_key));
 
-        // 2) Composite onto the chosen color → JPEG.
-        const { blob: full, width, height } = await compositeOnColor(
+        // 2) Composite onto the chosen background → JPEG.
+        const { blob: full, width, height } = await composite(
           transparent,
-          bgColor,
+          background,
         );
 
         // 3) Make a thumbnail too.
@@ -147,35 +170,102 @@ export function BgRemoveTool({
   return (
     <div className="bgr-tool">
       <section className="bgr-controls">
+        <div className="bgr-mode-tabs">
+          <button
+            type="button"
+            className={`bgr-mode-tab ${bgMode === 'color' ? 'active' : ''}`}
+            onClick={() => setBgMode('color')}
+          >
+            Solid color
+          </button>
+          <button
+            type="button"
+            className={`bgr-mode-tab ${bgMode === 'image' ? 'active' : ''}`}
+            onClick={() => setBgMode('image')}
+          >
+            Image
+          </button>
+        </div>
+
         <div className="bgr-controls-row">
           <div>
-            <div className="mono bgr-label">BACKGROUND COLOR</div>
-            <div className="bgr-color-row">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c.hex}
-                  type="button"
-                  className={`bgr-color-chip ${bgColor.toLowerCase() === c.hex.toLowerCase() ? 'active' : ''}`}
-                  onClick={() => setBgColor(c.hex)}
-                  title={c.name}
-                  style={{ background: c.hex }}
-                />
-              ))}
-              <label
-                className={`bgr-color-chip bgr-color-custom ${!colorIsPreset ? 'active' : ''}`}
-                style={{ background: customHex }}
-                title="Custom"
-              >
+            <div className="mono bgr-label">
+              {bgMode === 'color' ? 'BACKGROUND COLOR' : 'BACKGROUND IMAGE'}
+            </div>
+
+            {bgMode === 'color' && (
+              <div className="bgr-color-row">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c.hex}
+                    type="button"
+                    className={`bgr-color-chip ${bgColor.toLowerCase() === c.hex.toLowerCase() ? 'active' : ''}`}
+                    onClick={() => setBgColor(c.hex)}
+                    title={c.name}
+                    style={{ background: c.hex }}
+                  />
+                ))}
+                <label
+                  className={`bgr-color-chip bgr-color-custom ${!colorIsPreset ? 'active' : ''}`}
+                  style={{ background: customHex }}
+                  title="Custom"
+                >
+                  <input
+                    type="color"
+                    value={customHex}
+                    onChange={(e) => {
+                      setCustomHex(e.target.value);
+                      setBgColor(e.target.value);
+                    }}
+                  />
+                </label>
+              </div>
+            )}
+
+            {bgMode === 'image' && (
+              <div className="bgr-image-picker">
                 <input
-                  type="color"
-                  value={customHex}
+                  ref={bgFileRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
                   onChange={(e) => {
-                    setCustomHex(e.target.value);
-                    setBgColor(e.target.value);
+                    const f = e.target.files?.[0];
+                    if (f) setBgImageFile(f);
+                    e.target.value = '';
                   }}
                 />
-              </label>
-            </div>
+                {bgImagePreview ? (
+                  <button
+                    type="button"
+                    className="bgr-image-preview"
+                    onClick={() => bgFileRef.current?.click()}
+                    aria-label="Replace background image"
+                  >
+                    <img src={bgImagePreview} alt="" />
+                    <span className="bgr-image-replace mono">replace ↗</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="bgr-image-pick"
+                    onClick={() => bgFileRef.current?.click()}
+                  >
+                    <span className="bgr-image-plus">+</span>
+                    <span className="mono">Pick a background image</span>
+                  </button>
+                )}
+                {bgImageFile && (
+                  <button
+                    type="button"
+                    className="dash-link mono"
+                    onClick={() => setBgImageFile(null)}
+                  >
+                    remove
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="bgr-actions">
@@ -226,6 +316,10 @@ export function BgRemoveTool({
           {initial.map((m) => {
             const status = statuses[m.id]?.state;
             const sel = selected.has(m.id);
+            const tileBg =
+              bgMode === 'image' && bgImagePreview
+                ? `center / cover url("${bgImagePreview}")`
+                : bgColor;
             return (
               <button
                 key={m.id}
@@ -233,7 +327,7 @@ export function BgRemoveTool({
                 className={`bgr-tile ${sel ? 'selected' : ''} bgr-${status ?? 'idle'}`}
                 onClick={() => !busy && toggle(m.id)}
                 disabled={busy}
-                style={{ ['--bgr-bg' as string]: bgColor }}
+                style={{ background: tileBg }}
               >
                 <Image
                   src={thumbUrl(m.storage_key, m.thumb_storage_key)}
