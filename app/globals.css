@@ -1177,6 +1177,16 @@ em { font-style: italic; }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 8px;
+  position: relative;
+  user-select: none;
+}
+.bgr-drag-rect {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.08);
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 5;
 }
 .bgr-tile {
   position: relative; aspect-ratio: 1 / 1;
