@@ -20,6 +20,12 @@ export type Background =
 /**
  * Composite a transparent image onto a background (solid color OR image),
  * re-encoded as JPEG. Backgrounds are scaled with object-fit: cover.
+ *
+ * Hardens the foreground alpha channel before drawing so the product
+ * doesn't look "see-through" against the chosen background. Pixels with
+ * very low alpha get killed (background bleed), pixels in the middle get
+ * boosted, and clearly-foreground pixels stay fully opaque. Soft edges
+ * still get smoothed onto the new background.
  */
 export async function composite(
   transparentBlob: Blob,
@@ -28,6 +34,30 @@ export async function composite(
 ): Promise<{ blob: Blob; width: number; height: number }> {
   const fg = await loadImage(transparentBlob);
   const { naturalWidth: w, naturalHeight: h } = fg;
+
+  // 1) Pre-process the transparent foreground: harden the alpha channel.
+  const fgCanvas = document.createElement('canvas');
+  fgCanvas.width = w;
+  fgCanvas.height = h;
+  const fgCtx = fgCanvas.getContext('2d');
+  if (!fgCtx) throw new Error('Canvas 2D context unavailable');
+  fgCtx.drawImage(fg, 0, 0, w, h);
+  const fgData = fgCtx.getImageData(0, 0, w, h);
+  const px = fgData.data;
+  for (let i = 3; i < px.length; i += 4) {
+    const a = px[i];
+    if (a < 40) {
+      px[i] = 0; // background bleed → transparent
+    } else if (a > 200) {
+      px[i] = 255; // clearly foreground → opaque
+    } else {
+      // Mid-range: boost so the product looks more solid, soft-clamp to 255.
+      px[i] = Math.min(255, Math.round(a * 1.45));
+    }
+  }
+  fgCtx.putImageData(fgData, 0, 0);
+
+  // 2) Composite hardened foreground onto chosen background.
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -50,7 +80,7 @@ export async function composite(
     ctx.drawImage(bg, sx, sy, sw, sh, 0, 0, w, h);
   }
 
-  ctx.drawImage(fg, 0, 0, w, h);
+  ctx.drawImage(fgCanvas, 0, 0, w, h);
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, 'image/jpeg', quality),
   );
