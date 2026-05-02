@@ -35,7 +35,11 @@ export async function composite(
   const fg = await loadImage(transparentBlob);
   const { naturalWidth: w, naturalHeight: h } = fg;
 
-  // 1) Pre-process the transparent foreground: harden the alpha channel.
+  // 1) Pre-process the transparent foreground: hard-threshold the alpha
+  // channel so the product is fully solid against the new background.
+  // We keep ~10px of feathered edge between cutoff and full to avoid
+  // jagged stair-stepping on diagonals. Inside that band, alpha goes
+  // straight to 255 — which is what makes products look opaque.
   const fgCanvas = document.createElement('canvas');
   fgCanvas.width = w;
   fgCanvas.height = h;
@@ -44,15 +48,20 @@ export async function composite(
   fgCtx.drawImage(fg, 0, 0, w, h);
   const fgData = fgCtx.getImageData(0, 0, w, h);
   const px = fgData.data;
+  // CUTOFF: pixels with alpha below this are killed (background).
+  // EDGE_END: pixels above this are fully opaque (interior).
+  // The thin band between makes a soft 1-pixel edge.
+  const CUTOFF = 80;
+  const EDGE_END = 130;
   for (let i = 3; i < px.length; i += 4) {
     const a = px[i];
-    if (a < 40) {
-      px[i] = 0; // background bleed → transparent
-    } else if (a > 200) {
-      px[i] = 255; // clearly foreground → opaque
+    if (a < CUTOFF) {
+      px[i] = 0;
+    } else if (a >= EDGE_END) {
+      px[i] = 255;
     } else {
-      // Mid-range: boost so the product looks more solid, soft-clamp to 255.
-      px[i] = Math.min(255, Math.round(a * 1.45));
+      // Map [CUTOFF..EDGE_END] linearly to [0..255] for a soft edge.
+      px[i] = Math.round(((a - CUTOFF) / (EDGE_END - CUTOFF)) * 255);
     }
   }
   fgCtx.putImageData(fgData, 0, 0);
