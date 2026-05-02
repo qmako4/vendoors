@@ -1107,6 +1107,10 @@ em { font-style: italic; }
 
 .bgr-image-picker {
   display: flex; gap: 12px; align-items: center;
+  flex-wrap: wrap;
+}
+.bgr-image-options {
+  display: flex; gap: 8px; flex-wrap: wrap;
 }
 .bgr-image-pick {
   display: inline-flex; flex-direction: column;

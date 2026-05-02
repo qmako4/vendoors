@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { thumbUrl, photoUrl, makeThumb } from '@/lib/storage';
 import { removeBackground, composite, type Background } from '@/lib/bg-remove';
+import { LibraryPicker } from '@/components/LibraryPicker';
 
 type LibItem = {
   id: string;
@@ -49,8 +50,9 @@ export function BgRemoveTool({
   const [bgMode, setBgMode] = useState<'color' | 'image'>('color');
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [customHex, setCustomHex] = useState('#FFFFFF');
-  const [bgImageFile, setBgImageFile] = useState<File | null>(null);
+  const [bgImageBlob, setBgImageBlob] = useState<Blob | null>(null);
   const [bgImagePreview, setBgImagePreview] = useState<string | null>(null);
+  const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const [deleteOriginals, setDeleteOriginals] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -59,14 +61,14 @@ export function BgRemoveTool({
   );
 
   useEffect(() => {
-    if (!bgImageFile) {
+    if (!bgImageBlob) {
       setBgImagePreview(null);
       return;
     }
-    const url = URL.createObjectURL(bgImageFile);
+    const url = URL.createObjectURL(bgImageBlob);
     setBgImagePreview(url);
     return () => URL.revokeObjectURL(url);
-  }, [bgImageFile]);
+  }, [bgImageBlob]);
 
   function toggle(id: string) {
     setSelected((s) => {
@@ -87,7 +89,7 @@ export function BgRemoveTool({
 
   async function process() {
     if (selected.size === 0 || busy) return;
-    if (bgMode === 'image' && !bgImageFile) {
+    if (bgMode === 'image' && !bgImageBlob) {
       alert('Pick a background image first (or switch to a color).');
       return;
     }
@@ -100,7 +102,7 @@ export function BgRemoveTool({
     const background: Background =
       bgMode === 'color'
         ? { kind: 'color', hex: bgColor }
-        : { kind: 'image', blob: bgImageFile! };
+        : { kind: 'image', blob: bgImageBlob! };
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -242,7 +244,7 @@ export function BgRemoveTool({
                   hidden
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) setBgImageFile(f);
+                    if (f) setBgImageBlob(f);
                     e.target.value = '';
                   }}
                 />
@@ -257,20 +259,30 @@ export function BgRemoveTool({
                     <span className="bgr-image-replace mono">replace ↗</span>
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    className="bgr-image-pick"
-                    onClick={() => bgFileRef.current?.click()}
-                  >
-                    <span className="bgr-image-plus">+</span>
-                    <span className="mono">Pick a background image</span>
-                  </button>
+                  <div className="bgr-image-options">
+                    <button
+                      type="button"
+                      className="bgr-image-pick"
+                      onClick={() => bgFileRef.current?.click()}
+                    >
+                      <span className="bgr-image-plus">+</span>
+                      <span className="mono">Upload new image</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="bgr-image-pick"
+                      onClick={() => setBgPickerOpen(true)}
+                    >
+                      <span className="bgr-image-plus">⌫</span>
+                      <span className="mono">From library</span>
+                    </button>
+                  </div>
                 )}
-                {bgImageFile && (
+                {bgImageBlob && (
                   <button
                     type="button"
                     className="dash-link mono"
-                    onClick={() => setBgImageFile(null)}
+                    onClick={() => setBgImageBlob(null)}
                   >
                     remove
                   </button>
@@ -384,6 +396,21 @@ export function BgRemoveTool({
           })}
         </div>
       )}
+
+      <LibraryPicker
+        vendorId={vendorId}
+        open={bgPickerOpen}
+        onClose={() => setBgPickerOpen(false)}
+        onSelect={async (items) => {
+          const pick = items[0];
+          if (!pick) return;
+          // Fetch the chosen image from storage and stash as a blob.
+          const res = await fetch(photoUrl(pick.storage_key));
+          if (!res.ok) throw new Error('Could not load that image');
+          const blob = await res.blob();
+          setBgImageBlob(blob);
+        }}
+      />
     </div>
   );
 }
