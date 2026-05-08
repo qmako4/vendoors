@@ -14,6 +14,39 @@ type Props = {
   onClose: () => void;
 };
 
+const ONE_YEAR = 60 * 60 * 24 * 365;
+
+function readRememberPref(): boolean {
+  if (typeof document === 'undefined') return true;
+  const match = document.cookie
+    .split(';')
+    .map((c) => c.trim())
+    .find((c) => c.startsWith('vd_remember='));
+  return match?.split('=')[1] !== '0';
+}
+
+function writeRememberPref(remember: boolean) {
+  document.cookie = `vd_remember=${
+    remember ? '1' : '0'
+  }; path=/; max-age=${ONE_YEAR}; samesite=lax`;
+}
+
+// When the user unchecks "remember me", convert any sb-* auth cookies
+// already written by signInWithPassword into session cookies (no Max-Age,
+// so the browser drops them on close). Subsequent token refreshes go
+// through middleware, which reads vd_remember and keeps them session-only.
+function makeSupabaseCookiesSessionOnly() {
+  for (const raw of document.cookie.split(';')) {
+    const trimmed = raw.trim();
+    if (!trimmed.startsWith('sb-')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq < 0) continue;
+    const name = trimmed.slice(0, eq);
+    const value = trimmed.slice(eq + 1);
+    document.cookie = `${name}=${value}; path=/; samesite=lax`;
+  }
+}
+
 export function AuthModal({ open, mode, onClose }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<AuthMode>(mode);
@@ -21,6 +54,7 @@ export function AuthModal({ open, mode, onClose }: Props) {
   const [handle, setHandle] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
+  const [remember, setRemember] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
 
@@ -30,6 +64,7 @@ export function AuthModal({ open, mode, onClose }: Props) {
       setPhase('form');
       setErr(null);
       setNeedsEmailConfirm(false);
+      setRemember(readRememberPref());
     }
   }, [open, mode]);
 
@@ -51,6 +86,7 @@ export function AuthModal({ open, mode, onClose }: Props) {
     const supabase = createClient();
 
     if (tab === 'signin') {
+      writeRememberPref(remember);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password: pw,
@@ -60,6 +96,7 @@ export function AuthModal({ open, mode, onClose }: Props) {
         setPhase('form');
         return;
       }
+      if (!remember) makeSupabaseCookiesSessionOnly();
       setPhase('success');
       router.refresh();
       setTimeout(() => router.push('/dashboard'), 400);
@@ -139,6 +176,14 @@ export function AuthModal({ open, mode, onClose }: Props) {
                 onChange={(e) => setPw(e.target.value)}
                 placeholder="••••••••"
               />
+            </label>
+            <label className="auth-remember">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              <span>Keep me signed in</span>
             </label>
             {err && <div className="auth-err mono">{err}</div>}
             <button type="submit" className="btn-primary btn-lg auth-submit">
