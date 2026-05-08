@@ -61,6 +61,33 @@
 [data-palette="warm"] { --g1: #ffd2b8; --g2: #ffd9c2; --g3: #ffe2cc; --g4: #f7d3ba; }
 [data-palette="mono"] { --g1: #e8e8e8; --g2: #f0f0f0; --g3: #d8d8d8; --g4: #ececec; }
 
+/* Dark mode — flip the surface tokens; everything else cascades. */
+[data-theme="dark"] {
+  --bg: oklch(0.16 0.005 80);
+  --bg-2: oklch(0.20 0.006 80);
+  --bg-3: oklch(0.24 0.007 70);
+  --ink: oklch(0.94 0.003 60);
+  --ink-2: oklch(0.78 0.004 60);
+  --ink-3: oklch(0.56 0.005 60);
+  --hair: oklch(0.30 0.005 60);
+  --hair-strong: oklch(0.42 0.006 60);
+  --accent: oklch(0.92 0.008 60);
+  --accent-soft: oklch(0.26 0.005 60);
+  --good-soft: oklch(0.30 0.06 145);
+
+  --surface: oklch(0.22 0.005 80);
+  --ink-inverse: oklch(0.16 0.005 80);
+  --ink-stronger: oklch(1 0 0);
+
+  --lp-bg: oklch(0.16 0.005 80);
+  --lp-bg-tint: oklch(0.22 0.008 70);
+  --lp-ink: oklch(0.94 0.003 60);
+  --lp-ink-2: oklch(0.78 0.004 60);
+  --lp-ink-3: oklch(0.56 0.005 60);
+  --lp-hair: oklch(0.30 0.006 60);
+  color-scheme: dark;
+}
+
 /* Expose tokens to Tailwind so utility classes like bg-bg, text-ink,
    border-hair, font-serif, font-mono compose with the prototype CSS. */
 @theme inline {
@@ -136,6 +163,22 @@ em { font-style: italic; }
 .search-pill input::placeholder { color: var(--ink-3); }
 .search-pill .clear { background: transparent; border: none; color: var(--ink-3); font-size: 18px; line-height: 1; padding: 0 2px; }
 .menu-link { font-size: 13px; color: var(--ink); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--hair);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.theme-toggle:hover { background: var(--surface); border-color: var(--ink); }
+.theme-toggle svg { width: 16px; height: 16px; display: block; }
 
 .hero { border-bottom: 1px solid var(--hair); }
 .hero-inner { max-width: 1640px; margin: 0 auto; padding: 88px 28px 56px; }

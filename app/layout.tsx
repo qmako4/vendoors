@@ -32,6 +32,19 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
 };
 
+// Runs synchronously before React hydrates so dark mode users don't see a
+// flash of the light theme. Reads vd_theme from localStorage; falls back to
+// the OS-level prefers-color-scheme. ThemeToggle.tsx writes the same key.
+const themeBootstrapScript = `
+(function() {
+  try {
+    var stored = localStorage.getItem('vd_theme');
+    var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.dataset.theme = theme;
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -39,7 +52,11 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

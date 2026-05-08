@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { CartButton } from './CartButton';
+import { ThemeToggle } from './ThemeToggle';
 
 export async function SiteHeader() {
   const supabase = await createClient();
@@ -17,6 +18,7 @@ export async function SiteHeader() {
         </Link>
         <div className="hdr-right">
           <CartButton />
+          <ThemeToggle />
           {user ? (
             <Link className="menu-link" href="/dashboard">
               Dashboard

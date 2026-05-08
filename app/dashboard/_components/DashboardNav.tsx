@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Gallery } from '@/lib/active-gallery';
 import { switchGallery } from '../galleries/actions';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 type Props = {
   email: string;
@@ -105,6 +106,7 @@ export function DashboardNav({ email, galleries, activeId }: Props) {
               )}
             </div>
           )}
+          <ThemeToggle />
           <button className="btn-ghost dash-signout" onClick={signOut}>
             Sign out
           </button>
