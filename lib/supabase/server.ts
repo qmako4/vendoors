@@ -1,9 +1,11 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/supabase/types';
+import { REMEMBER_COOKIE, sessionizeIfNeeded } from '@/lib/remember-me';
 
 export async function createClient() {
   const cookieStore = await cookies();
+  const remember = cookieStore.get(REMEMBER_COOKIE)?.value !== '0';
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +18,11 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             for (const { name, value, options } of cookiesToSet) {
-              cookieStore.set(name, value, options);
+              cookieStore.set(
+                name,
+                value,
+                sessionizeIfNeeded(options, remember),
+              );
             }
           } catch {
             // The `setAll` method was called from a Server Component.
