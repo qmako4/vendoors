@@ -120,18 +120,43 @@ async function existsInR2(key) {
   }
 }
 
+// Supabase Storage occasionally returns 502/504 under a burst; retry with
+// exponential backoff so transient blips don't leave gaps.
+async function withRetry(fn, attempts = 4) {
+  let lastErr;
+  for (let a = 1; a <= attempts; a++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (a < attempts) {
+        await new Promise((r) => setTimeout(r, 500 * 2 ** (a - 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 async function copyOne(key) {
   if (await existsInR2(key)) return 'skip';
-  const { data, error } = await supabase.storage.from('photos').download(key);
-  if (error || !data) throw new Error(`download failed: ${error?.message}`);
-  const bytes = Buffer.from(await data.arrayBuffer());
-  await r2.send(
-    new PutObjectCommand({
-      Bucket: CLOUDFLARE_R2_BUCKET,
-      Key: key,
-      Body: bytes,
-      ContentType: contentType(key),
-    }),
+  const bytes = await withRetry(async () => {
+    const { data, error } = await supabase.storage
+      .from('photos')
+      .download(key);
+    if (error || !data) {
+      throw new Error(`download failed: ${error?.message ?? 'no data'}`);
+    }
+    return Buffer.from(await data.arrayBuffer());
+  });
+  await withRetry(() =>
+    r2.send(
+      new PutObjectCommand({
+        Bucket: CLOUDFLARE_R2_BUCKET,
+        Key: key,
+        Body: bytes,
+        ContentType: contentType(key),
+      }),
+    ),
   );
   return 'copied';
 }
