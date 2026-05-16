@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { r2Remove } from '@/lib/r2-client';
+import { USING_R2 } from '@/lib/storage-backend';
 
 type Variant = 'button' | 'link';
 
@@ -64,7 +66,8 @@ export function DeleteAlbumButton({
     // 3) Remove storage objects (Supabase storage doesn't cascade with DB).
     const keys = (photos ?? []).map((p) => p.storage_key);
     if (keys.length > 0) {
-      await supabase.storage.from('photos').remove(keys);
+      if (USING_R2) await r2Remove(keys);
+      else await supabase.storage.from('photos').remove(keys);
     }
 
     // 4) Delete the album row. FK cascades handle child albums and photo rows.

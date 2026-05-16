@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { thumbUrl, photoUrl, makeThumb } from '@/lib/storage';
 import { removeBackground, composite, type Background } from '@/lib/bg-remove';
+import { r2Upload, r2Remove } from '@/lib/r2-client';
+import { USING_R2 } from '@/lib/storage-backend';
 import { LibraryPicker } from '@/components/LibraryPicker';
 
 type LibItem = {
@@ -145,17 +147,27 @@ export function BgRemoveTool({
         const fullKey = `${vendorId}/library/${baseId}.jpg`;
         const thumbKey = `${vendorId}/library/${baseId}-thumb.jpg`;
 
-        const { error: upErr } = await supabase.storage
-          .from('photos')
-          .upload(fullKey, full, { contentType: 'image/jpeg' });
-        if (upErr) throw upErr;
-
+        const uploads = [
+          { key: fullKey, blob: full, contentType: 'image/jpeg' },
+        ];
         if (thumb) {
-          const { error: thumbErr } = await supabase.storage
-            .from('photos')
-            .upload(thumbKey, thumb.blob, { contentType: 'image/jpeg' });
-          if (!thumbErr) thumbStorageKey = thumbKey;
+          uploads.push({
+            key: thumbKey,
+            blob: thumb.blob,
+            contentType: 'image/jpeg',
+          });
         }
+        if (USING_R2) {
+          await r2Upload(uploads);
+        } else {
+          for (const u of uploads) {
+            const { error: upErr } = await supabase.storage
+              .from('photos')
+              .upload(u.key, u.blob, { contentType: u.contentType });
+            if (upErr) throw upErr;
+          }
+        }
+        if (thumb) thumbStorageKey = thumbKey;
 
         // 5) Insert media row for the new image. Track the derivation so
         // the library can hide originals that have been processed.
@@ -170,9 +182,11 @@ export function BgRemoveTool({
           derived_from_media_id: item.id,
         });
         if (insErr) {
-          await supabase.storage.from('photos').remove(
-            thumbStorageKey ? [fullKey, thumbStorageKey] : [fullKey],
-          );
+          const orphans = thumbStorageKey
+            ? [fullKey, thumbStorageKey]
+            : [fullKey];
+          if (USING_R2) await r2Remove(orphans);
+          else await supabase.storage.from('photos').remove(orphans);
           throw insErr;
         }
 
@@ -181,7 +195,8 @@ export function BgRemoveTool({
           await supabase.from('media').delete().eq('id', item.id);
           const keysToRemove = [item.storage_key];
           if (item.thumb_storage_key) keysToRemove.push(item.thumb_storage_key);
-          await supabase.storage.from('photos').remove(keysToRemove);
+          if (USING_R2) await r2Remove(keysToRemove);
+          else await supabase.storage.from('photos').remove(keysToRemove);
         }
 
         setStatuses((s) => ({ ...s, [item.id]: { state: 'done' } }));

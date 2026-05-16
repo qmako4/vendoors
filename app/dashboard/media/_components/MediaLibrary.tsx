@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { thumbUrl } from '@/lib/storage';
 import { uploadToLibrary } from '@/lib/upload';
+import { r2Remove } from '@/lib/r2-client';
+import { USING_R2 } from '@/lib/storage-backend';
 import { useWatermarkText } from '@/components/useWatermarkText';
 
 // Hide the auto-detect entry point until we revisit grouping reliability.
@@ -187,7 +189,8 @@ export function MediaLibrary({
       alert(`Delete failed: ${error.message}`);
       return;
     }
-    await supabase.storage.from('photos').remove([item.storage_key]);
+    if (USING_R2) await r2Remove([item.storage_key]);
+    else await supabase.storage.from('photos').remove([item.storage_key]);
     setItems((prev) => prev.filter((x) => x.id !== item.id));
     router.refresh();
   }

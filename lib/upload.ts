@@ -1,4 +1,6 @@
 import { resizeForUpload, makeThumb } from './storage';
+import { r2Upload, r2Remove } from './r2-client';
+import { USING_R2 } from './storage-backend';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseLike = any;
@@ -48,24 +50,30 @@ export async function uploadToLibrary(
   const fullKey = `${vendorId}/library/${baseId}.${ext}`;
   const thumbKey = `${vendorId}/library/${baseId}-thumb.jpg`;
 
-  // Upload full size first.
-  const { error: upErr } = await supabase.storage
-    .from('photos')
-    .upload(fullKey, blob, { contentType: type });
-  if (upErr) throw upErr;
-
-  // Generate + upload thumbnail. If it fails, log and continue — the full
-  // image still works, the grid just falls back to it.
-  let thumbStorageKey: string | null = null;
+  // Build the thumbnail up front so full + thumb upload in one presign call.
+  // If thumbnailing fails, the grid just falls back to the full image.
+  let thumb: Awaited<ReturnType<typeof makeThumb>> | null = null;
   try {
-    const thumb = await makeThumb(blob);
-    const { error: thumbErr } = await supabase.storage
-      .from('photos')
-      .upload(thumbKey, thumb.blob, { contentType: thumb.type });
-    if (!thumbErr) thumbStorageKey = thumbKey;
+    thumb = await makeThumb(blob);
   } catch (e) {
     console.warn('thumbnail generation failed; falling back to full size', e);
   }
+
+  const uploads = [{ key: fullKey, blob, contentType: type }];
+  if (thumb) {
+    uploads.push({ key: thumbKey, blob: thumb.blob, contentType: thumb.type });
+  }
+  if (USING_R2) {
+    await r2Upload(uploads);
+  } else {
+    for (const u of uploads) {
+      const { error: upErr } = await supabase.storage
+        .from('photos')
+        .upload(u.key, u.blob, { contentType: u.contentType });
+      if (upErr) throw upErr;
+    }
+  }
+  const thumbStorageKey: string | null = thumb ? thumbKey : null;
 
   const { data: media, error: insErr } = await supabase
     .from('media')
@@ -81,9 +89,9 @@ export async function uploadToLibrary(
     .single();
 
   if (insErr || !media) {
-    await supabase.storage.from('photos').remove(
-      thumbStorageKey ? [fullKey, thumbStorageKey] : [fullKey],
-    );
+    const orphans = thumbStorageKey ? [fullKey, thumbStorageKey] : [fullKey];
+    if (USING_R2) await r2Remove(orphans);
+    else await supabase.storage.from('photos').remove(orphans);
     throw insErr ?? new Error('Could not save to library');
   }
 

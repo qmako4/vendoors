@@ -1,4 +1,10 @@
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+// When set, photos resolve from Cloudflare R2 (free egress) instead of
+// Supabase Storage. Keys are identical in both, so flipping this env var
+// is the entire read-side cutover — and is instantly reversible.
+const R2_PUBLIC_URL = (
+  process.env.NEXT_PUBLIC_R2_PUBLIC_URL || ''
+).replace(/\/$/, '');
 
 export type PhotoUrlOptions = {
   /** Width in px. Resize using Supabase image transforms. */
@@ -29,6 +35,11 @@ export function thumbUrl(
 }
 
 export function photoUrl(storageKey: string, opts?: PhotoUrlOptions): string {
+  // R2 has no on-the-fly transform; we already upload explicit 480px thumbs,
+  // and every caller uses photoUrl without opts, so just serve the object.
+  if (R2_PUBLIC_URL) {
+    return `${R2_PUBLIC_URL}/${storageKey}`;
+  }
   if (!opts || (!opts.width && !opts.height)) {
     return `${SUPABASE_URL}/storage/v1/object/public/photos/${storageKey}`;
   }
