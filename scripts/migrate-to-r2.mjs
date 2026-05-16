@@ -5,7 +5,8 @@
 // Safe to re-run: it HEADs R2 first and skips objects already copied.
 //
 // Run:  node scripts/migrate-to-r2.mjs
-// Reads credentials from .env.local in the project root.
+// Reads credentials from .env.local in the project root, or from real
+// environment variables (e.g. GitHub Actions) when .env.local is absent.
 
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
@@ -15,14 +16,15 @@ import {
   PutObjectCommand,
 } from '@aws-sdk/client-s3';
 
-// --- load .env.local ---------------------------------------------------
+// --- load .env.local if present (optional) -----------------------------
 function loadEnv() {
   let raw = '';
   try {
     raw = readFileSync(new URL('../.env.local', import.meta.url), 'utf8');
   } catch {
-    console.error('Missing .env.local in project root.');
-    process.exit(1);
+    // No .env.local — rely on process.env (CI). Required vars are
+    // validated below with a clear error if anything is missing.
+    return;
   }
   for (const line of raw.split('\n')) {
     const m = line.match(/^\s*([\w.]+)\s*=\s*(.*)\s*$/);

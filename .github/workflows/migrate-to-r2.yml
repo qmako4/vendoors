@@ -1,0 +1,27 @@
+name: Migrate photos to R2
+
+# Manual one-off backfill: copies every photo from Supabase Storage into
+# Cloudflare R2. Idempotent — safe to re-run (skips already-copied files).
+# Trigger from the Actions tab → "Run workflow".
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Backfill Supabase Storage → R2
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.MIGRATE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.MIGRATE_SUPABASE_SERVICE_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.MIGRATE_R2_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.MIGRATE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.MIGRATE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET: vendoors-photos
+        run: node scripts/migrate-to-r2.mjs
