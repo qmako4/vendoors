@@ -2443,9 +2443,9 @@ em { font-style: italic; }
    Dark mode — follows OS preference. Flips the design tokens; surfaces
    that hardcoded #fff/#000 use --surface / --ink-inverse / --ink-stronger
    so they flip too. Vibrant accent colors (red, purple ribbon, photo
-   overlays) stay as-is.
+   overlays) stay as-is. Phones/tablets only — desktop is always light.
    ───────────────────────────────────────────────────────────────────── */
-@media (prefers-color-scheme: dark) {
+@media (max-width: 1023px) and (prefers-color-scheme: dark) {
   :root {
     /* Editorial gallery */
     --bg: oklch(0.16 0.005 60);
